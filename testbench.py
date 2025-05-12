@@ -1,45 +1,45 @@
 import cocotb
-import logging
 import random
 from cocotb.triggers import Timer
-from cocotb.binary import BinaryValue
-from cocotb.utils import get_sim_time
 
 @cocotb.test()
-async def test(dut):
-    error_count = 0  # Initialize the error count
-    logging.getLogger().setLevel(logging.INFO)
-    
-    din_bin   = BinaryValue(value=0, n_bits=8, bigEndian=False)
-    sel_bin   = BinaryValue(value=0, n_bits=3, bigEndian=False)
-    dout_bin  = BinaryValue(value=0, n_bits=1, bigEndian=False)
+async def random_addition_test(dut):
+    """Randomized test for the adder"""
+    error_count = 0  # شمارنده خطاها
+    total_tests = 20  # تعداد دفعات تست (میتونی اینو زیاد یا کم کنی)
 
+    for i in range(10):  # Run 10 random tests
+        # Generate random 4-bit numbers
+        a = random.randint(0, 15)
+        b = random.randint(0, 15)
 
-    for _ in range(30):
-        din = random.randint(0,255)   #randomize  din
-        sel = random.randint(0, 7)    #randomize  sel
-        din_bin.integer = din    # convert  intiger  to  binnary 
-        sel_bin.integer = sel    #convert   intiger  to binnary 
-        
-        dut.din.value = din_bin
-        dut.sel.value = sel_bin
-        
-        await Timer(10, 'ns')
-        
-        dout = dut.dout.value
-        dout_bin.integer = dout
-        
-        print('din:', din_bin,'sel:',sel_bin, 'dout:', dout_bin)
-        print('exp_dout:', din_bin.binstr[sel],'dout:',dout_bin.binstr)
-        print('din_bin.binstr[7-sel] : ',din_bin.binstr[7-sel] , 'sel  : ' , sel)
-        if din_bin.binstr[7-sel] != dout_bin.binstr:
+        # Apply inputs
+        dut.a.value = a
+        dut.b.value = b
+
+        # Wait for processing
+        await Timer(10, units='ns')
+
+        # Read the output
+        y = dut.y.value.integer
+
+        # Calculate expected value
+        expected = a + b
+
+        # Log the values
+        dut._log.info(f"Test {i}: a={a}, b={b}, expected={expected}, got={y}")
+
+        # Assertion
+        #assert y == expected, f"Test {i} failed: {a} + {b} = {expected}, but DUT gave {y}"
+         # بررسی و مدیریت خطا
+        if y != expected:
+            dut._log.error(f"❌ Test {i} FAILED: {a} + {b} = {expected}, but got {y}")
             error_count += 1
-     
-        await Timer(10, 'ns')
-       
-    print('--------------------------------------------------------')
-    if error_count > 0:
-        logging.error('Number of failed test cases: %d', error_count)
+
+    # پایان تست - چاپ نتیجه نهایی
+    if error_count == 0:
+        dut._log.info(f"✅ All {total_tests} tests passed successfully!")
     else:
-        logging.info('All test cases passed')
-    print('--------------------------------------------------------')
+        dut._log.error(f"❌ {error_count} out of {total_tests} tests FAILED!")
+        assert False, f"{error_count} tests failed!"
+
